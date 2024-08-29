@@ -1,39 +1,17 @@
-from __future__ import absolute_import, division, print_function
 
 import os
-import sys
-import glob
-import argparse
-import time
-import io
-from matplotlib import pyplot as plt
-import numpy as np
 import PIL.Image as pil
-from matplotlib import cm as cm
-import pynng
-from pynng import nng
-
 import torch
-from torchvision import transforms, datasets
-
+from torchvision import transforms
 import deps.monodepth2.networks as networks
-from deps.monodepth2.layers import disp_to_depth
 from deps.monodepth2.utils import download_model_if_doesnt_exist
-
 from seathru import *
-
-
 def run(args):
     """Function to predict for a single image or folder of images
     """
     assert args.model_name is not None, \
         "You must specify the --model_name parameter; see README.md for an example"
-
-    if torch.cuda.is_available() and not args.no_cuda:
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
-
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
     download_model_if_doesnt_exist(args.model_name)
     model_path = os.path.join("models", args.model_name)
     print("-> Loading model from ", model_path)
@@ -42,7 +20,7 @@ def run(args):
 
     # LOADING PRETRAINED MODEL
     print("   Loading pretrained encoder")
-    encoder = networks.ResnetEncoder(18, False)
+    encoder = networks.ResnetEncoder(num_layers=18,pretrained= False)
     loaded_dict_enc = torch.load(encoder_path, map_location=device)
 
     # extract the height and width of image that this model was trained with
@@ -56,23 +34,19 @@ def run(args):
     print("   Loading pretrained decoder")
     depth_decoder = networks.DepthDecoder(
         num_ch_enc=encoder.num_ch_enc, scales=range(4))
-
     loaded_dict = torch.load(depth_decoder_path, map_location=device)
     depth_decoder.load_state_dict(loaded_dict)
-
     depth_decoder.to(device)
     depth_decoder.eval()
-
     # Load image and preprocess
+    transform=transforms.Compose([transforms.ToTensor()])
     img = Image.fromarray(rawpy.imread(args.image).postprocess()) if args.raw else pil.open(args.image).convert('RGB')
-    img.thumbnail((args.size, args.size), Image.ANTIALIAS)
+    img.thumbnail(size=(args.size, args.size),resample= Image.Resampling.LANCZOS)
     original_width, original_height = img.size
-    # img = exposure.equalize_adapthist(np.array(img), clip_limit=0.03)
-    # img = Image.fromarray((np.round(img * 255.0)).astype(np.uint8))
-    input_image = img.resize((feed_width, feed_height), pil.LANCZOS)
-    input_image = transforms.ToTensor()(input_image).unsqueeze(0)
+    input_image = img.resize(size=(feed_width, feed_height),resample= pil.LANCZOS)
+    input_image = transform(input_image)
+    input_image=input_image.unsqueeze(0)
     print('Preprocessed image', flush=True)
-
     # PREDICTION
     input_image = input_image.to(device)
     features = encoder(input_image)
@@ -101,7 +75,7 @@ def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image', required=True, help='Input image',default="/home/muahmmad/projects/Image_enhancement/Enhancement_Dataset")
+    parser.add_argument('--image', required=False, help='Input image',default="/home/muahmmad/projects/Image_enhancement/Enhancement_Dataset/7393_NF2_f000010.jpg")
     parser.add_argument('--output', default='output.png', help='Output filename')
     parser.add_argument('--f', type=float, default=2.0, help='f value (controls brightness)')
     parser.add_argument('--l', type=float, default=0.5, help='l value (controls balance of attenuation constants)')

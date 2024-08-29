@@ -8,7 +8,6 @@ import scipy.optimize
 import scipy.stats
 import math
 from PIL import Image
-import rawpy
 from matplotlib import pyplot as plt
 from skimage import exposure
 from skimage.restoration import denoise_bilateral, denoise_tv_chambolle, estimate_sigma
