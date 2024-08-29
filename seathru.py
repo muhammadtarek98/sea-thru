@@ -9,13 +9,11 @@ import scipy.stats
 import math
 from PIL import Image
 import rawpy
-import matplotlib
 from matplotlib import pyplot as plt
 from skimage import exposure
 from skimage.restoration import denoise_bilateral, denoise_tv_chambolle, estimate_sigma
 from skimage.morphology import closing, opening, erosion, dilation, disk, diamond, square
 
-matplotlib.use('TkAgg')
 
 '''
 Finds points for which to estimate backscatter
@@ -23,7 +21,9 @@ by partitioning the image into different depth
 ranges and taking the darkest RGB triplets 
 from that set as estimations of the backscatter
 '''
-def find_backscatter_estimation_points(img, depths, num_bins=10, fraction=0.01, max_vals=20, min_depth_percent=0.0):
+def find_backscatter_estimation_points(img:np.ndarray, depths:np.ndarray,
+                                       num_bins:int=10, fraction:float=0.01,
+                                       max_vals:int=20, min_depth_percent:float=0.0):
     z_max, z_min = np.max(depths), np.min(depths)
     min_depth = z_min + (min_depth_percent * (z_max - z_min))
     z_ranges = np.linspace(z_min, z_max, num_bins + 1)
@@ -46,13 +46,16 @@ def find_backscatter_estimation_points(img, depths, num_bins=10, fraction=0.01, 
 Estimates coefficients for the backscatter curve
 based on the backscatter point values and their depths
 '''
-def find_backscatter_values(B_pts, depths, restarts=10, max_mean_loss_fraction=0.1):
+def find_backscatter_values(B_pts:np.ndarray,
+                            depths:np.ndarray,
+                            restarts:int=10,
+                            max_mean_loss_fraction:float=0.1):
     B_vals, B_depths = B_pts[:, 1], B_pts[:, 0]
     z_max, z_min = np.max(depths), np.min(depths)
     max_mean_loss = max_mean_loss_fraction * (z_max - z_min)
     coefs = None
     best_loss = np.inf
-    def estimate(depths, B_inf, beta_B, J_prime, beta_D_prime):
+    def estimate(depths:np.ndarray, B_inf, beta_B, J_prime, beta_D_prime):
         val = (B_inf * (1 - np.exp(-1 * beta_B * depths))) + (J_prime * np.exp(-1 * beta_D_prime * depths))
         return val
     def loss(B_inf, beta_B, J_prime, beta_D_prime):
@@ -85,7 +88,9 @@ def find_backscatter_values(B_pts, depths, restarts=10, max_mean_loss_fraction=0
 '''
 Estimate illumination map from local color space averaging
 '''
-def estimate_illumination(img, B, neighborhood_map, num_neighborhoods, p=0.5, f=2.0, max_iters=100, tol=1E-5):
+def estimate_illumination(img, B, neighborhood_map, num_neighborhoods,
+                          p:float=0.5, f:float=2.0,
+                          max_iters:int=100, tol:float=1E-5):
     D = img - B
     avg_cs = np.zeros_like(img)
     avg_cs_prime = np.copy(avg_cs)
@@ -152,7 +157,10 @@ def filter_data(X, Y, radius_fraction=0.01):
 Estimate coefficients for the 2-term exponential
 describing the wideband attenuation
 '''
-def refine_wideband_attentuation(depths, illum, estimation, restarts=10, min_depth_fraction = 0.1, max_mean_loss_fraction=np.inf, l=1.0, radius_fraction=0.01):
+def refine_wideband_attentuation(depths, illum, estimation,
+                                 restarts:int=10, min_depth_fraction:float = 0.1,
+                                 max_mean_loss_fraction:float=np.inf, l:float=1.0,
+                                 radius_fraction:float=0.01):
     eps = 1E-8
     z_max, z_min = np.max(depths), np.min(depths)
     min_depth = z_min + (min_depth_fraction * (z_max - z_min))
@@ -313,8 +321,8 @@ def refine_neighborhood_map(nmap, min_size = 10, radius = 3):
 def load_image_and_depth_map(img_fname, depths_fname, size_limit = 1024):
     depths = Image.open(depths_fname)
     img = Image.fromarray(rawpy.imread(img_fname).postprocess())
-    img.thumbnail((size_limit, size_limit), Image.ANTIALIAS)
-    depths = depths.resize(img.size, Image.ANTIALIAS)
+    img.thumbnail(size=(size_limit, size_limit),resample=Image.ANTIALIAS)
+    depths = depths.resize(size=img.size,resample=Image.ANTIALIAS)
     return np.float32(img) / 255.0, np.array(depths)
 
 '''
@@ -431,10 +439,10 @@ def run_pipeline(img, depths, args):
         plt.show()
 
     print('Constructing neighborhood map...', flush=True)
-    nmap, _ = construct_neighborhood_map(depths, 0.1)
+    nmap, _ = construct_neighborhood_map(depths, epsilon=0.1)
 
     print('Refining neighborhood map...', flush=True)
-    nmap, n = refine_neighborhood_map(nmap, 50)
+    nmap, n = refine_neighborhood_map(nmap, min_size=50)
     if args.output_graphs:
         plt.imshow(nmap)
         plt.title('Neighborhood map')
@@ -444,7 +452,7 @@ def run_pipeline(img, depths, args):
     illR = estimate_illumination(img[:, :, 0], Br, nmap, n, p=args.p, max_iters=100, tol=1E-5, f=args.f)
     illG = estimate_illumination(img[:, :, 1], Bg, nmap, n, p=args.p, max_iters=100, tol=1E-5, f=args.f)
     illB = estimate_illumination(img[:, :, 2], Bb, nmap, n, p=args.p, max_iters=100, tol=1E-5, f=args.f)
-    ill = np.stack([illR, illG, illB], axis=2)
+    ill = np.stack(arrays=[illR, illG, illB], axis=2)
     if args.output_graphs:
         plt.imshow(ill)
         plt.title('Illuminant map')
@@ -462,13 +470,13 @@ def run_pipeline(img, depths, args):
         print('Coefficients: \n{}\n{}\n{}'.format(coefsR, coefsG, coefsB), flush=True)
         # plot the wideband attenuation values
         plt.clf()
-        plt.imshow(np.stack([scale(refined_beta_D_r), np.zeros_like(beta_D_r), np.zeros_like(beta_D_r)], axis=2))
+        plt.imshow(np.stack(arrays=[scale(refined_beta_D_r), np.zeros_like(beta_D_r), np.zeros_like(beta_D_r)], axis=2))
         plt.show()
         plt.clf()
-        plt.imshow(np.stack([np.zeros_like(beta_D_r), scale(refined_beta_D_g), np.zeros_like(beta_D_r)], axis=2))
+        plt.imshow(np.stack(arrays=[np.zeros_like(beta_D_r), scale(refined_beta_D_g), np.zeros_like(beta_D_r)], axis=2))
         plt.show()
         plt.clf()
-        plt.imshow(np.stack([np.zeros_like(beta_D_r), np.zeros_like(beta_D_r), scale(refined_beta_D_b)], axis=2))
+        plt.imshow(np.stack(arrays=[np.zeros_like(beta_D_r), np.zeros_like(beta_D_r), scale(refined_beta_D_b)], axis=2))
         plt.show()
 
     # check optimization for beta_D channel
@@ -482,7 +490,7 @@ def run_pipeline(img, depths, args):
         locs = np.where(
             np.logical_and(beta_D_r > eps, np.logical_and(beta_D_g > eps, np.logical_and(depths > eps, beta_D_b > eps))))
         plt.scatter(depths[locs].ravel(), beta_D_b[locs].ravel(), c='b', alpha=0.1, edgecolors='none')
-        xs = np.linspace(np.min(depths[locs]), np.max(depths[locs]), 1000)
+        xs = np.linspace(np.min(depths[locs]), np.max(depths[locs]),num=1000)
         ys = eval_xs(xs, coefsB)
         plt.plot(xs.ravel(), ys.ravel(), c='b')
         plt.scatter(depths[locs].ravel(), beta_D_g[locs].ravel(), c='g', alpha=0.1, edgecolors='none')
@@ -498,8 +506,8 @@ def run_pipeline(img, depths, args):
         plt.show()
 
     print('Reconstructing image...', flush=True)
-    B = np.stack([Br, Bg, Bb], axis=2)
-    beta_D = np.stack([refined_beta_D_r, refined_beta_D_g, refined_beta_D_b], axis=2)
+    B = np.stack(arrays=[Br, Bg, Bb], axis=2)
+    beta_D = np.stack(arrays=[refined_beta_D_r, refined_beta_D_g, refined_beta_D_b], axis=2)
     recovered = recover_image(img, depths, B, beta_D, nmap)
 
 

@@ -6,11 +6,10 @@ import glob
 import argparse
 import time
 import io
-
+from matplotlib import pyplot as plt
 import numpy as np
 import PIL.Image as pil
-import matplotlib as mpl
-import matplotlib.cm as cm
+from matplotlib import cm as cm
 import pynng
 from pynng import nng
 
@@ -81,7 +80,7 @@ def run(args):
 
     disp = outputs[("disp", 0)]
     disp_resized = torch.nn.functional.interpolate(
-        disp, (original_height, original_width), mode="bilinear", align_corners=False)
+        disp, size=(original_height, original_width), mode="bilinear", align_corners=False)
 
     # Saving colormapped depth image
     disp_resized_np = disp_resized.squeeze().cpu().detach().numpy()
@@ -93,7 +92,7 @@ def run(args):
                                             args.monodepth_multiply_depth)
     recovered = run_pipeline(np.array(img) / 255.0, depths, args)
     # recovered = exposure.equalize_adapthist(scale(np.array(recovered)), clip_limit=0.03)
-    sigma_est = estimate_sigma(recovered, multichannel=True, average_sigmas=True) / 10.0
+    sigma_est = estimate_sigma(image=recovered, multichannel=True, average_sigmas=True) / 10.0
     recovered = denoise_tv_chambolle(recovered, sigma_est, multichannel=True)
     im = Image.fromarray((np.round(recovered * 255.0)).astype(np.uint8))
     im.save(args.output, format='png')
@@ -102,7 +101,7 @@ def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image', required=True, help='Input image')
+    parser.add_argument('--image', required=True, help='Input image',default="/home/muahmmad/projects/Image_enhancement/Enhancement_Dataset")
     parser.add_argument('--output', default='output.png', help='Output filename')
     parser.add_argument('--f', type=float, default=2.0, help='f value (controls brightness)')
     parser.add_argument('--l', type=float, default=0.5, help='l value (controls balance of attenuation constants)')
