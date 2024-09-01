@@ -21,7 +21,7 @@ def run(args):
     # LOADING PRETRAINED MODEL
     print("   Loading pretrained encoder")
     encoder = networks.ResnetEncoder(num_layers=18,pretrained= False)
-    loaded_dict_enc = torch.load(encoder_path, map_location=device)
+    loaded_dict_enc = torch.load(f=encoder_path, map_location=device,weights_only=False)
 
     # extract the height and width of image that this model was trained with
     feed_height = loaded_dict_enc['height']
@@ -66,8 +66,8 @@ def run(args):
                                             args.monodepth_multiply_depth)
     recovered = run_pipeline(np.array(img) / 255.0, depths, args)
     # recovered = exposure.equalize_adapthist(scale(np.array(recovered)), clip_limit=0.03)
-    sigma_est = estimate_sigma(image=recovered, multichannel=True, average_sigmas=True) / 10.0
-    recovered = denoise_tv_chambolle(recovered, sigma_est, multichannel=True)
+    sigma_est = estimate_sigma(image=recovered, average_sigmas=True) / 10.0
+    recovered = denoise_tv_chambolle(recovered, sigma_est)
     im = Image.fromarray((np.round(recovered * 255.0)).astype(np.uint8))
     im.save(args.output, format='png')
     print('Done.')

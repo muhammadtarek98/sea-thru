@@ -537,9 +537,9 @@ def run_pipeline(img, depths, args):
 
     return recovered
 
-def preprocess_for_monodepth(img_fname, output_fname, size_limit=1024):
+def preprocess_for_monodepth(img_fname:str, output_fname:str, size_limit:int=1024):
     img = Image.fromarray(rawpy.imread(img_fname).postprocess())
-    img.thumbnail((size_limit, size_limit), Image.ANTIALIAS)
+    img.thumbnail(size=(size_limit, size_limit), resample=Image.ANTIALIAS)
     img_adapteq = exposure.equalize_adapthist(np.array(img), clip_limit=0.03)
     Image.fromarray((np.round(img_adapteq * 255.0)).astype(np.uint8)).save(output_fname)
 
@@ -559,7 +559,7 @@ def preprocess_monodepth_depth_map(depths, additive_depth, multiply_depth):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image', required=True, help='Input image')
+    parser.add_argument('--image', required=True, help='Input image',default="/home/muahmmad/projects/Image_enhancement/Enhancement_Dataset/7393_NF2_f000010.jpg")
     parser.add_argument('--depth-map', required=True, help='Input depth map')
     parser.add_argument('--output', default='output.png', help='Output filename')
     parser.add_argument('--f', type=float, default=2.0, help='f value (controls brightness)')
