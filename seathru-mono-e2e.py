@@ -1,5 +1,3 @@
-
-import os
 import PIL.Image as pil
 import torch
 from torchvision import transforms
@@ -20,7 +18,7 @@ def run(args):
 
     # LOADING PRETRAINED MODEL
     print("   Loading pretrained encoder")
-    encoder = networks.ResnetEncoder(num_layers=18,pretrained= False)
+    encoder = networks.ResnetEncoder(num_layers=18, pretrained= False)
     loaded_dict_enc = torch.load(f=encoder_path, map_location=device,weights_only=False)
 
     # extract the height and width of image that this model was trained with
