@@ -1,4 +1,5 @@
 import collections
+import os
 import sys
 import argparse
 import numpy as np
@@ -14,6 +15,7 @@ from skimage.restoration import denoise_bilateral, denoise_tv_chambolle, estimat
 from skimage.morphology import closing, opening, erosion, dilation, disk, diamond, square
 import rawpy
 import cv2
+
 '''
 Finds points for which to estimate backscatter
 by partitioning the image into different depth
@@ -67,8 +69,9 @@ def find_backscatter_values(B_pts: np.ndarray,
     def loss(B_inf, beta_B, J_prime, beta_D_prime):
         val = np.mean(np.abs(B_vals - estimate(B_depths, B_inf, beta_B, J_prime, beta_D_prime)))
         return val
-    bounds_lower = [0,0,0,0]
-    bounds_upper = [1,5,1,5]
+
+    bounds_lower = [0, 0, 0, 0]
+    bounds_upper = [1, 5, 1, 5]
     for _ in range(restarts):
         try:
             optp, pcov = sp.optimize.curve_fit(
@@ -99,7 +102,7 @@ Estimate illumination map from local color space averaging
 
 def estimate_illumination(img, B, neighborhood_map, num_neighborhoods,
                           p: float = 0.5, f: float = 2.0,
-                          max_iters: int = 100, tol: float = 1E-5):
+                          max_iters: int = 10000000, tol: float = 1e-8):
     D = img - B
     avg_cs = np.zeros_like(img)
     avg_cs_prime = np.copy(avg_cs)
@@ -114,7 +117,7 @@ def estimate_illumination(img, B, neighborhood_map, num_neighborhoods,
             size = sizes[label - 1] - 1
             avg_cs_prime[locs] = (1 / size) * (np.sum(avg_cs[locs]) - avg_cs[locs])
         new_avg_cs = (D * p) + (avg_cs_prime * (1 - p))
-        if (np.max(np.abs(avg_cs - new_avg_cs)) < tol):
+        if np.max(np.abs(avg_cs - new_avg_cs)) < tol:
             break
         avg_cs = new_avg_cs
     return f * denoise_bilateral(np.maximum(0, avg_cs))
@@ -125,7 +128,7 @@ Estimate values for beta_D
 '''
 
 
-def estimate_wideband_attentuation(depths, illum, radius=6, max_val=10.0):
+def estimate_wideband_attentuation(depths, illum, radius=100, max_val=10.0):
     eps = 1E-8
     BD = np.minimum(max_val, -np.log(illum + eps) / (np.maximum(0, depths) + eps))
     mask = np.where(np.logical_and(depths > eps, illum > eps), 1, 0)
@@ -292,7 +295,7 @@ def construct_neighborhood_map(depths, epsilon=0.05):
         n_neighborhoods += 1
     zeros_size_arr = sorted(zip(*np.unique(nmap[depths == 0], return_counts=True)), key=lambda x: x[1], reverse=True)
     if len(zeros_size_arr) > 0:
-        nmap[nmap == zeros_size_arr[0][0]] = 0  #reset largest background to 0
+        nmap[nmap == zeros_size_arr[0][0]] = 0
     return nmap, n_neighborhoods - 1
 
 
@@ -351,11 +354,13 @@ def refine_neighborhood_map(nmap, min_size=10, radius=3):
     return refined_nmap, num_labels - 1
 
 
-def load_image_and_depth_map(img_fname, depths_fname, size_limit=1024):
+def load_image_and_depth_map(img_fname, depths_fname):
     depths = Image.open(depths_fname)
-    img=cv2.cvtColor(src=cv2.imread(img_fname),code=cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(src=cv2.imread(img_fname), code=cv2.COLOR_BGR2RGB)
+    h, w, c = img.shape
+
     img = Image.fromarray(img)
-    img.thumbnail(size=(size_limit, size_limit), resample=Image.LANCZOS)
+    img.thumbnail(size=(h, w), resample=Image.LANCZOS)
     depths = depths.resize(size=img.size, resample=Image.LANCZOS)
     return np.float32(img) / 255.0, np.array(depths)
 
@@ -441,7 +446,7 @@ def scale(img):
 
 def run_pipeline(img, depths, args):
     if 'output_graphs' not in args:
-        args.output_graphs = False
+        args.output_graphs = True
     if args.output_graphs:
         plt.imshow(depths)
         plt.title('Depth Map')
@@ -462,7 +467,7 @@ def run_pipeline(img, depths, args):
             if len(coefs) == 2:
                 return xs * coefs[0] + coefs[1]
             else:
-                return ((coefs[0] * (1 - np.exp(-coefs[1] * xs))) + (coefs[2] * np.exp(-coefs[3] * xs)))
+                return (coefs[0] * (1 - np.exp(-coefs[1] * xs))) + (coefs[2] * np.exp(-coefs[3] * xs))
 
         # check optimization for B channel
         plt.clf()
@@ -498,9 +503,9 @@ def run_pipeline(img, depths, args):
         plt.show()
 
     print('Estimating illumination...', flush=True)
-    illR = estimate_illumination(img[:, :, 0], Br, nmap, n, p=args.p, max_iters=100, tol=1E-5, f=args.f)
-    illG = estimate_illumination(img[:, :, 1], Bg, nmap, n, p=args.p, max_iters=100, tol=1E-5, f=args.f)
-    illB = estimate_illumination(img[:, :, 2], Bb, nmap, n, p=args.p, max_iters=100, tol=1E-5, f=args.f)
+    illR = estimate_illumination(img[:, :, 0], Br, nmap, n, p=args.p, f=args.f, max_iters=100, tol=1E-5)
+    illG = estimate_illumination(img[:, :, 1], Bg, nmap, n, p=args.p, f=args.f, max_iters=100, tol=1E-5)
+    illB = estimate_illumination(img[:, :, 2], Bb, nmap, n, p=args.p, f=args.f, max_iters=100, tol=1E-5)
     ill = np.stack(arrays=[illR, illG, illB], axis=2)
     if args.output_graphs:
         plt.imshow(ill)
@@ -621,7 +626,7 @@ if __name__ == '__main__':
     parser.add_argument('--image', required=False, help='Input image',
                         default="/home/cplus/projects/m.tarek_master/Image_enhancement/Enhancement_Dataset/7117_no_fish_2_f000040.jpg")
     parser.add_argument('--depth-map', required=False, help='Input depth map',
-                        default="/home/cplus/projects/m.tarek_master/Image_enhancement/DepthMaps/7117_no_fish_2_f000040.jpg")
+                        default="/home/cplus/projects/m.tarek_master/Image_enhancement/DepthMaps_DPT/7117_no_fish_2_f000040.jpg")
     parser.add_argument('--output', default='output.png', help='Output filename')
     parser.add_argument('--f', type=float, default=2.0, help='f value (controls brightness)')
     parser.add_argument('--l', type=float, default=0.5, help='l value (controls balance of attenuation constants)')
@@ -646,7 +651,7 @@ if __name__ == '__main__':
         preprocess_for_monodepth(args.image, args.output, args.size)
     else:
         print('Loading image...', flush=True)
-        img, depths = load_image_and_depth_map(args.image, args.depth_map, args.size)
+        img, depths = load_image_and_depth_map(args.image, args.depth_map)
         if args.monodepth:
             depths = preprocess_monodepth_depth_map(depths, args.monodepth_add_depth, args.monodepth_multiply_depth)
         else:
