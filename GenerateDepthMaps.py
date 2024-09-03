@@ -37,6 +37,6 @@ def generate_single_image(image_dir:str):
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
     image=generate_depth_map_depth_anything(image_file=image_dir)
     #image=GLPNForDepthEstimation_depth_estimation(check_point=checkpoint,image_dir=image_dir,device=device)
-    cv2.imwrite(filename="DAT_depth.png",img=image)
+    cv2.imwrite(filename="7117_no_fish_2_f000000_DAT_depth.png",img=image)
 
-generate_single_image(image_dir="/home/cplus/projects/m.tarek_master/Image_enhancement/images/000224_224_left.jpg")
+generate_single_image(image_dir="/home/cplus/projects/m.tarek_master/Image_enhancement/Enhancement_Dataset/7117_no_fish_2_f000000.jpg")

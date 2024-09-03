@@ -46,13 +46,14 @@ def sea_thru_algorithm(image: np.ndarray, percentile: float, depth_map: np.ndarr
 
 
 if __name__ == "__main__":
-    depth_map_dir_DAT = "/home/cplus/projects/m.tarek_master/Image_enhancement/DepthMaps_DepthAnything/7393_NF2_f000060.jpg"
-    depth_map_dir_DPT = "/home/cplus/projects/m.tarek_master/Image_enhancement/DepthMaps_DPT/7393_NF2_f000060.jpg"
-    image_dir = "/home/cplus/projects/m.tarek_master/Image_enhancement/Enhancement_Dataset/7393_NF2_f000060.jpg"
+    depth_map_dir_DAT ='/home/cplus/projects/m.tarek_master/Image_enhancement/sea-thru/7117_no_fish_2_f000000_DAT_depth.png'
+    #depth_map_dir_DPT = "/home/cplus/projects/m.tarek_master/Image_enhancement/DepthMaps_DPT/7393_NF2_f000060.jpg"
+    image_dir = '/home/cplus/projects/m.tarek_master/Image_enhancement/Enhancement_Dataset/7117_no_fish_2_f000000.jpg'
 
     image = cv2.imread(image_dir)
+    image=cv2.cvtColor(src=image,code=cv2.COLOR_BGRA2BGR)
     depth_DAT = cv2.imread(depth_map_dir_DAT, cv2.IMREAD_GRAYSCALE) / 255.0
-    depth_DPT = cv2.imread(depth_map_dir_DPT, cv2.IMREAD_GRAYSCALE) / 255.0
+    #depth_DPT = cv2.imread(depth_map_dir_DPT, cv2.IMREAD_GRAYSCALE) / 255.0
 
     # Parameters
     beta_depth = [0.2, 0.3, 0.4]
@@ -66,15 +67,16 @@ if __name__ == "__main__":
                                              device=device,
                                              beta_backscatter=beta_backscatter,
                                              beta_depth_map=beta_depth)
-    corrected_image_DPT = sea_thru_algorithm(image=image,
+    """corrected_image_DPT = sea_thru_algorithm(image=image,
                                              depth_map=depth_DPT,
                                              percentile=10.0,
                                              device=device,
                                              beta_backscatter=beta_backscatter,
                                              beta_depth_map=beta_depth)
-
+    """
     # Save the corrected images
     cv2.imwrite(filename="7393_NF2_f000060_dat.jpg",
                 img=corrected_image_DAT)
-    cv2.imwrite(filename="7393_NF2_f000060_dpt.jpg",
+    """cv2.imwrite(filename="7393_NF2_f000060_dpt.jpg",
                 img= corrected_image_DPT)
+    """

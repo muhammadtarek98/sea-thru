@@ -624,9 +624,9 @@ def preprocess_monodepth_depth_map(depths, additive_depth, multiply_depth):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--image', required=False, help='Input image',
-                        default="/home/cplus/projects/m.tarek_master/Image_enhancement/images/000224_224_left.jpg")
+                        default="/home/cplus/projects/m.tarek_master/Image_enhancement/Enhancement_Dataset/7117_no_fish_2_f000040.jpg")
     parser.add_argument('--depth-map', required=False, help='Input depth map',
-                        default="/home/cplus/projects/m.tarek_master/Image_enhancement/sea-thru/GPLN_depth.png")
+                        default="/home/cplus/projects/m.tarek_master/Image_enhancement/DepthMaps_DPT/7117_no_fish_2_f000040.jpg")
     parser.add_argument('--output', default='output.png', help='Output filename')
     parser.add_argument('--f', type=float, default=2.0, help='f value (controls brightness)')
     parser.add_argument('--l', type=float, default=0.5, help='l value (controls balance of attenuation constants)')

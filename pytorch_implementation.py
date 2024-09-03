@@ -34,25 +34,20 @@ class SeaThruModel(nn.Module):
         self.B_inf = nn.Parameter(torch.tensor(0.1))  # Backscatter saturation value
 
     def forward(self, I_c):
-        # Calculate attenuated light AL = J_c^D * exp(-beta_d * z)
         AL_c = I_c / (torch.exp(-self.beta_d * self.depth_map))
-
-        # Calculate backscatter BS = B_c^∞ * (1 - exp(-beta_b * z))
         BS_c = self.B_inf * (1 - torch.exp(-self.beta_b * self.depth_map))
 
-        # Model the observed image I_c = AL_c + BS_c
-        I_c_model = AL_c - BS_c  # Subtract backscatter to correct
-
+        I_c_model = AL_c - BS_c
         return I_c_model, AL_c, BS_c
 
 
-image_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/Enhancement_Dataset/7426_NF2_f000180.jpg'
-depth_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/DepthMaps_DepthAnything/7426_NF2_f000180.jpg'
+image_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/images/000224_224_left.jpg'
+depth_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/sea-thru/7117_no_fish_2_f000000_DAT_depth.png'
 
 I_c = load_image(image_path)  # RGB image
 depth_map = load_depth_map(depth_path)  # Depth map
 model = SeaThruModel(depth_map)
-optimizer = optim.Adam(model.parameters(), lr=0.01)
+optimizer = optim.Adam(model.parameters(), lr=0.0001)
 loss_fn = nn.MSELoss()
 
 num_epochs = 10000
