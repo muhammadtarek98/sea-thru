@@ -1,4 +1,3 @@
-
 import os
 import PIL.Image as pil
 import torch
@@ -6,12 +5,14 @@ from torchvision import transforms
 import deps.monodepth2.networks as networks
 from deps.monodepth2.utils import download_model_if_doesnt_exist
 from seathru import *
+
+
 def run(args):
     """Function to predict for a single image or folder of images
     """
     assert args.model_name is not None, \
         "You must specify the --model_name parameter; see README.md for an example"
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     download_model_if_doesnt_exist(args.model_name)
     model_path = os.path.join("models", args.model_name)
     print("-> Loading model from ", model_path)
@@ -20,8 +21,8 @@ def run(args):
 
     # LOADING PRETRAINED MODEL
     print("   Loading pretrained encoder")
-    encoder = networks.ResnetEncoder(num_layers=18,pretrained= False)
-    loaded_dict_enc = torch.load(f=encoder_path, map_location=device,weights_only=False)
+    encoder = networks.ResnetEncoder(num_layers=18, pretrained=False)
+    loaded_dict_enc = torch.load(f=encoder_path, map_location=device, weights_only=False)
 
     # extract the height and width of image that this model was trained with
     feed_height = loaded_dict_enc['height']
@@ -39,13 +40,13 @@ def run(args):
     depth_decoder.to(device)
     depth_decoder.eval()
     # Load image and preprocess
-    transform=transforms.Compose([transforms.ToTensor()])
+    transform = transforms.Compose([transforms.ToTensor()])
     img = Image.fromarray(rawpy.imread(args.image).postprocess()) if args.raw else pil.open(args.image).convert('RGB')
-    img.thumbnail(size=(args.size, args.size),resample= Image.Resampling.LANCZOS)
+    img.thumbnail(size=(args.size, args.size), resample=Image.Resampling.LANCZOS)
     original_width, original_height = img.size
-    input_image = img.resize(size=(feed_width, feed_height),resample= pil.LANCZOS)
+    input_image = img.resize(size=(feed_width, feed_height), resample=pil.LANCZOS)
     input_image = transform(input_image)
-    input_image=input_image.unsqueeze(0)
+    input_image = input_image.unsqueeze(0)
     print('Preprocessed image', flush=True)
     # PREDICTION
     input_image = input_image.to(device)
@@ -65,7 +66,7 @@ def run(args):
     depths = preprocess_monodepth_depth_map(mapped_im_depths, args.monodepth_add_depth,
                                             args.monodepth_multiply_depth)
     recovered = run_pipeline(np.array(img) / 255.0, depths, args)
-    # recovered = exposure.equalize_adapthist(scale(np.array(recovered)), clip_limit=0.03)
+    recovered = exposure.equalize_adapthist(scale(np.array(recovered)), clip_limit=0.03)
     sigma_est = estimate_sigma(image=recovered, average_sigmas=True) / 10.0
     recovered = denoise_tv_chambolle(recovered, sigma_est)
     im = Image.fromarray((np.round(recovered * 255.0)).astype(np.uint8))
@@ -75,18 +76,19 @@ def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image', required=False, help='Input image',default="/home/muahmmad/projects/Image_enhancement/Enhancement_Dataset/7393_NF2_f000010.jpg")
-    parser.add_argument('--output', default='output.png', help='Output filename')
-    parser.add_argument('--f', type=float, default=2.0, help='f value (controls brightness)')
-    parser.add_argument('--l', type=float, default=0.5, help='l value (controls balance of attenuation constants)')
-    parser.add_argument('--p', type=float, default=0.01, help='p value (controls locality of illuminant map)')
+    parser.add_argument('--image', required=False, help='Input image',
+                        default="/home/cplus/projects/m.tarek_master/Image_enhancement/images/000224_224_left.jpg")
+    parser.add_argument('--output', default='output_2.png', help='Output filename')
+    parser.add_argument('--f', type=float, default=3.0, help='f value (controls brightness)')
+    parser.add_argument('--l', type=float, default=0.9, help='l value (controls balance of attenuation constants)')
+    parser.add_argument('--p', type=float, default=0.04, help='p value (controls locality of illuminant map)')
     parser.add_argument('--min-depth', type=float, default=0.0,
                         help='Minimum depth value to use in estimations (range 0-1)')
     parser.add_argument('--max-depth', type=float, default=1.0,
                         help='Replacement depth percentile value for invalid depths (range 0-1)')
     parser.add_argument('--spread-data-fraction', type=float, default=0.05,
                         help='Require data to be this fraction of depth range away from each other in attenuation estimations')
-    parser.add_argument('--size', type=int, default=320, help='Size to output')
+    parser.add_argument('--size', type=int, default=2200, help='Size to output')
     parser.add_argument('--monodepth-add-depth', type=float, default=2.0, help='Additive value for monodepth map')
     parser.add_argument('--monodepth-multiply-depth', type=float, default=10.0,
                         help='Multiplicative value for monodepth map')
