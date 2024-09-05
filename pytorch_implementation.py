@@ -29,27 +29,27 @@ class SeaThruModel(nn.Module):
     def __init__(self, depth_map, init_beta_d=0.5, init_beta_b=0.5):
         super(SeaThruModel, self).__init__()
         self.depth_map = depth_map
-        self.beta_d = nn.Parameter(torch.tensor(init_beta_d))  # Attenuation coefficient
-        self.beta_b = nn.Parameter(torch.tensor(init_beta_b))  # Backscatter coefficient
-        self.B_inf = nn.Parameter(torch.tensor(0.1))  # Backscatter saturation value
+        self.beta_d = nn.Parameter(torch.tensor(init_beta_d),requires_grad=True)  # Attenuation coefficient
+        self.beta_b = nn.Parameter(torch.tensor(init_beta_b),requires_grad=True)  # Backscatter coefficient
+        self.B_inf = nn.Parameter(torch.tensor(0.1),requires_grad=True)  # Backscatter saturation value
 
     def forward(self, I_c):
         AL_c = I_c / (torch.exp(-self.beta_d * self.depth_map))
         BS_c = self.B_inf * (1 - torch.exp(-self.beta_b * self.depth_map))
-
         I_c_model = AL_c - BS_c
         return I_c_model, AL_c, BS_c
 
 
-image_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/images/000224_224_left.jpg'
-depth_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/sea-thru/7117_no_fish_2_f000000_DAT_depth.png'
+image_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/depth_maps/images/000224_224_left.jpg'
+depth_path = '/home/cplus/projects/m.tarek_master/Image_enhancement/depth_maps/depth_images/000224_224_left.png'
 
 I_c = load_image(image_path)  # RGB image
+I_c.requires_grad_=True
 depth_map = load_depth_map(depth_path)  # Depth map
 model = SeaThruModel(depth_map)
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
-loss_fn = nn.MSELoss()
-
+loss_fn = nn.L1Loss()
+global I_c_model
 num_epochs = 10000
 for epoch in range(num_epochs):
     optimizer.zero_grad()
@@ -59,5 +59,7 @@ for epoch in range(num_epochs):
     optimizer.step()
     if epoch % 100 == 0:
         print(f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item()}')
-
-save_image(I_c_model.detach(), filename='enhanced_image.jpg')
+print(AL_c)
+print(BS_c)
+save_image(tensor=AL_c.detach(),filename="AL_c.jpg")
+save_image(I_c_model.detach(), filename='I_c_model.jpg')
