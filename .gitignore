@@ -1,7 +1,7 @@
 *.png
 *.jpg
-*.pt
-*.zip
-*.rar
+models\*.pt
+models\*.zip
+models\*.rar
 *.pdf
 *.tex
